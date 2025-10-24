@@ -208,7 +208,9 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
 
     cliente->codigo = proximo_codigo_cliente;
 
-    const char *NOMES[] = {"Joao Pedro Martins", "Ryan Campos", "Vinicius Amancio"};
+
+    const char *NOMES[] = {"Joao Pedro", "Ryan", "Vinicius", "Yzamak", "Amanda", "Gleyci"};
+    const char *SOBRENOMES[] = {"Schons", "Martins", "Amancio", "Campos", "Meneguete", "Pereira", "Correa"};
     const char *BAIRRO[] = {"CENTRO", "Sibipiruna", "Flamboyant"};
     const char *RUA[] = {"Avenida 8", "Teiji Matsui", "Major Pedro H. Cavalcante", "Rua 12", "Rua P9"};
     const char *CIDADE[] = {"Dourados", "Chapadao do Sul", "Vicentina"};
@@ -216,15 +218,33 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
     const char *ESTADO[] = {"MS"};
     int aux_nomes = rand() % 3;
 
+    char nome_completo[50] = ""; 
+    
+    strcpy(nome_completo, NOMES[rand() % 6]); 
+    strcat(nome_completo, " ");           
+    strcat(nome_completo, SOBRENOMES[rand() % 7]);     
+
     //randomiza o nome
-    strcpy(cliente->nome, NOMES[rand() % 3]);
+    strcpy(cliente->nome, nome_completo);
     strcpy(cliente->endereco.cidade, CIDADE[aux_nomes]);
     strcpy(cliente->endereco.cep, CEP[aux_nomes]);
     strcpy(cliente->endereco.rua, RUA[rand() % 3]);
     strcpy(cliente->endereco.bairro, BAIRRO[rand() % 3]);
     strcpy(cliente->endereco.estado, ESTADO[0]);
     cliente->renda_mensal = rand() % 10000;
-
+    cliente->endereco.numero = rand() % 999;
+    //char telefone[14];  //99 99999-9999
+    cliente->celular->telefone[0] = '6';
+    cliente->celular->telefone[1] = '7'; // 1
+    cliente->celular->telefone[2] = ' ';
+    for (int i = 3; i < 8; i++){
+        cliente->celular->telefone[i] = '0' + (rand() % 10);
+    }
+    cliente->celular->telefone[8] = '-';
+    for (int i = 9; i < 13; i++){
+        cliente->celular->telefone[i] = '0' + (rand() % 10);
+    }
+    cliente->celular->telefone[13] = '\0';
     cliente->ativo = 1;
     proximo_codigo_cliente++;
 }
@@ -232,6 +252,7 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
 void mostrar_cliente(const struct CLIENTE *cli) {
     printf("Codigo: %d\n", cli->codigo);
     printf("Nome: %s\n", cli->nome);
+    printf("Celular: %s\n", cli->celular->telefone);
     printf("Renda Mensal: R$ %.2f\n", cli->renda_mensal);
     printf("Endereco: %s, %d - %s/%s\n", cli->endereco.rua, cli->endereco.numero, cli->endereco.cidade, cli->endereco.estado);
 }
@@ -274,7 +295,7 @@ FILE *abrir_arquivo_carro(const char *modo_abertura){
     FILE *arquivo = fopen(ARQ_CARRO, modo_abertura);
     if (arquivo == NULL){
         if (strcmp(modo_abertura, "r+b") == 0 || strcmp(modo_abertura, "a+b") == 0){
-            printf("Não foi possível abrir ou criar o arquivo de carros.\n");
+            printf("Nao foi possivel abrir ou criar o arquivo de carros.\n");
             perror("Detalhes do erro: ");
         }
     }
@@ -292,138 +313,33 @@ void InserirCarro(){
 
     printf("=======================================\n");
     printf("INSERIR CARRO\n");
+    gerar_dados_carros(&novo_carro);
+    mostrar_carro(&novo_carro);
 
-    // Placa (AAA-1234)
-    printf("Digite a PLACA do carro (AAA-1234): \n");
-    if (scanf("%8s", novo_carro.placa) != 1) {
-        fclose(arquivo);
-        return;
-    }
-    // Validar formato da placa
-    if (strlen(novo_carro.placa) != 8 || 
-        !isalpha(novo_carro.placa[0]) || !isalpha(novo_carro.placa[1]) || !isalpha(novo_carro.placa[2]) ||
-        novo_carro.placa[3] != '-' ||
-        !isdigit(novo_carro.placa[4]) || !isdigit(novo_carro.placa[5]) || 
-        !isdigit(novo_carro.placa[6]) || !isdigit(novo_carro.placa[7])) {
-        printf("Placa inválida! Use o formato AAA-1234.\n");
-        fclose(arquivo);
-        return;
-    }
 
     // Verificar se a placa já existe
     struct CARRO temp;
     rewind(arquivo);
     while (fread(&temp, sizeof(struct CARRO), 1, arquivo) == 1) {
         if (strcmp(temp.placa, novo_carro.placa) == 0 && temp.ativo) {
-            printf("Carro com placa %s já existe!\n", novo_carro.placa);
+            printf("Carro com placa %s ja existe!\n", novo_carro.placa);
             fclose(arquivo);
             return;
         }
     }
 
-    // Marca
-    printf("Digite a MARCA do carro (bmw, fiat, chevrolet): \n");
-    scanf(" %[^\n]", novo_carro.marca);
-    if (strcmp(novo_carro.marca, "bmw") != 0 && 
-        strcmp(novo_carro.marca, "fiat") != 0 && 
-        strcmp(novo_carro.marca, "chevrolet") != 0) {
-        printf("Marca inválida! Use apenas: bmw, fiat, chevrolet.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Modelo
-    printf("Digite o MODELO do carro: \n");
-    scanf(" %[^\n]", novo_carro.modelo);
-    if (strcmp(novo_carro.marca, "bmw") == 0 && 
-        strcmp(novo_carro.modelo, "320i") != 0 && 
-        strcmp(novo_carro.modelo, "x1") != 0 && 
-        strcmp(novo_carro.modelo, "x5") != 0) {
-        printf("Modelo invalido para BMW! Use apenas: 320i, x1, x5.\n");
-        fclose(arquivo);
-        return;
-    }
-    if (strcmp(novo_carro.marca, "fiat") == 0 && 
-        strcmp(novo_carro.modelo, "mobi") != 0 && 
-        strcmp(novo_carro.modelo, "toro") != 0 && 
-        strcmp(novo_carro.modelo, "uno") != 0) {
-        printf("Modelo invalido para Fiat! Use apenas: mobi, toro, uno.\n");
-        fclose(arquivo);
-        return;
-    }
-    if (strcmp(novo_carro.marca, "chevrolet") == 0 && 
-        strcmp(novo_carro.modelo, "celta") != 0 && 
-        strcmp(novo_carro.modelo, "astra") != 0 && 
-        strcmp(novo_carro.modelo, "tracker") != 0) {
-        printf("Modelo invalido para Chevrolet! Use apenas: celta, astra, tracker.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Ano de fabricação
-    printf("Digite o ANO de fabricação (1980-2025): \n");
-    if (scanf("%d", &novo_carro.ano_fabricacao) != 1 || 
-        novo_carro.ano_fabricacao < 1980 || novo_carro.ano_fabricacao > 2025) {
-        printf("Ano invalido! Deve ser entre 1980 e 2025.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Combustível
-    printf("Digite o COMBUSTÍVEL do carro (alcool, gasolina, flex): \n");
-    scanf(" %[^\n]", novo_carro.combustivel);
-    if (strcmp(novo_carro.combustivel, "alcool") != 0 && 
-        strcmp(novo_carro.combustivel, "gasolina") != 0 && 
-        strcmp(novo_carro.combustivel, "flex") != 0) {
-        printf("Combustivel invalido! Use apenas: alcool, gasolina, flex.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Cor
-    printf("Digite a COR do carro (branca, prata, preta, cinza, bi-color): \n");
-    scanf(" %[^\n]", novo_carro.cor);
-    if (strcmp(novo_carro.cor, "branca") != 0 && 
-        strcmp(novo_carro.cor, "prata") != 0 && 
-        strcmp(novo_carro.cor, "preta") != 0 && 
-        strcmp(novo_carro.cor, "cinza") != 0 && 
-        strcmp(novo_carro.cor, "bi-color") != 0) {
-        printf("Cor invalida! Use apenas: branca, prata, preta, cinza, bi-color.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Preço de compra
-    printf("Digite o PRECO de compra do carro (R$): \n");
-    if (scanf("%f", &novo_carro.preco_compra) != 1 || novo_carro.preco_compra <= 0) {
-        printf("Preço invalido! Deve ser maior que zero.\n");
-        fclose(arquivo);
-        return;
-    }
-
-    // Opcionais
-    printf("Digite os OPCIONAIS do carro (0 ou 1 para cada, na ordem):\n");
-    printf("air.bag, banco.couro, sensor.ponto.cego, cambio.automatico, cambio.borboleta, ");
-    printf("controle.estabilidade, start.stop, camera.360, ar.condicionado, abs, ");
-    printf("sensor.estacionamento, partida.sem.chave\n");
-    for (int i = 0; i < 12; i++) {
-        int valor;
-        if (scanf("%d", &valor) != 1 || (valor != 0 && valor != 1)) {
-            printf("Opcional inválido! Use apenas 0 ou 1.\n");
-            fclose(arquivo);
-            return;
-        }
-        novo_carro.opcional[i] = valor;
-    }
-
-    if (fwrite(&novo_carro, sizeof(struct CARRO), 1, arquivo) != 1) {
-        printf("Erro ao gravar o carro no registro!\n");
+    
+    if (fwrite(&novo_carro, sizeof(struct CLIENTE), 1, arquivo) != 1) {
+        printf("=======================================\n");
+        printf("Erro ao gravar o cliente no arquivo.\n");
     } else {
-        printf("Carro registrado com sucesso!\n");
-        printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustível: %s | Cor: %s | Preço: R$%.2f\n",
-               novo_carro.placa, novo_carro.marca, novo_carro.modelo, novo_carro.ano_fabricacao,
-               novo_carro.combustivel, novo_carro.cor, novo_carro.preco_compra);
+        printf("=======================================\n");
+        printf("Um(a) %s %s com a placa %s inserido com sucesso!\n", novo_carro.marca, novo_carro.modelo, novo_carro.placa);
     }
+
+    
+
+    
 
     fclose(arquivo);
 }
@@ -437,7 +353,7 @@ void ExcluirCarro(){
     char placa[9];
     printf("=======================================\n");
     printf("EXCLUIR CARRO\n");
-    printf("Digite a PLACA do carro a ser excluído (AAA-1234): \n");
+    printf("Digite a PLACA do carro a ser excluido (AAA-1234): \n");
     if (scanf("%8s", placa) != 1) {
         fclose(arquivo);
         return;
@@ -449,7 +365,7 @@ void ExcluirCarro(){
         placa[3] != '-' ||
         !isdigit(placa[4]) || !isdigit(placa[5]) || 
         !isdigit(placa[6]) || !isdigit(placa[7])) {
-        printf("Placa inválida! Use o formato AAA-1234.\n");
+        printf("Placa invalida! Use o formato AAA-1234.\n");
         fclose(arquivo);
         return;
     }
@@ -467,14 +383,14 @@ void ExcluirCarro(){
             if (fwrite(&carro, sizeof(struct CARRO), 1, arquivo) != 1) {
                 printf("Erro ao excluir o carro!\n");
             } else {
-                printf("Carro com placa %s excluído com sucesso!\n", placa);
+                printf("Carro com placa %s excluido com sucesso!\n", placa);
             }
             break;
         }
     }
 
     if (!encontrado) {
-        printf("Carro com placa %s não encontrado ou já excluído!\n", placa);
+        printf("Carro com placa %s nao encontrado ou ja excluido!\n", placa);
     }
 
     fclose(arquivo);
@@ -497,7 +413,7 @@ void MostrarCarroDisp_marca_modelo(){
     }
 
     if (count == 0) {
-        printf("Nenhum carro disponível para venda!\n");
+        printf("Nenhum carro disponivel para venda!\n");
         fclose(arquivo);
         return;
     }
@@ -505,7 +421,7 @@ void MostrarCarroDisp_marca_modelo(){
     // Alocar array para carros ativos
     struct CARRO *carros = malloc(count * sizeof(struct CARRO));
     if (carros == NULL) {
-        printf("Erro de alocação de memória!\n");
+        printf("Erro de alocacao de memoria!\n");
         fclose(arquivo);
         return;
     }
@@ -525,26 +441,28 @@ void MostrarCarroDisp_marca_modelo(){
 
     // Exibir carros
     printf("=======================================\n");
-    printf("CARROS DISPONÍVEIS (ORDENADOS POR MARCA E MODELO)\n");
+    printf("CARROS DISPONIVEIS (ORDENADOS POR MARCA E MODELO)\n");
     for (int i = 0; i < count; i++) {
-        printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustível: %s | Cor: %s | Preço: R$%.2f | Opcionais: ",
+        printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustivel: %s | Cor: %s | Preco: R$%.2f\n",
                carros[i].placa, carros[i].marca, carros[i].modelo, carros[i].ano_fabricacao,
                carros[i].combustivel, carros[i].cor, carros[i].preco_compra);
+
+        printf("Opcionais:\n");
         for (int j = 0; j < 12; j++) {
             if (carros[i].opcional[j]) {
                 switch (j) {
-                    case 0: printf("air.bag "); break;
-                    case 1: printf("banco.couro "); break;
-                    case 2: printf("sensor.ponto.cego "); break;
-                    case 3: printf("cambio.automatico "); break;
-                    case 4: printf("cambio.borboleta "); break;
-                    case 5: printf("controle.estabilidade "); break;
-                    case 6: printf("start.stop "); break;
-                    case 7: printf("camera.360 "); break;
-                    case 8: printf("ar.condicionado "); break;
-                    case 9: printf("abs "); break;
-                    case 10: printf("sensor.estacionamento "); break;
-                    case 11: printf("partida.sem.chave "); break;
+                    case 0: printf("air.bag\n"); break;
+                    case 1: printf("banco.couro\n"); break;
+                    case 2: printf("sensor.ponto.cego\n"); break;
+                    case 3: printf("cambio.automatico\n"); break;
+                    case 4: printf("cambio.borboleta\n"); break;
+                    case 5: printf("controle.estabilidade\n"); break;
+                    case 6: printf("start.stop\n"); break;
+                    case 7: printf("camera.360\n"); break;
+                    case 8: printf("ar.condicionado\n"); break;
+                    case 9: printf("abs\n"); break;
+                    case 10: printf("sensor.estacionamento\n"); break;
+                    case 11: printf("partida.sem.chave\n"); break;
                 }
             }
         }
@@ -565,13 +483,22 @@ int MostrarCarroDispo_selecao(){
     printf("=======================================\n");
     printf("MOSTRAR CARROS POR OPCIONAIS\n");
     printf("Selecione os opcionais desejados (0 ou 1 para cada, na ordem):\n");
-    printf("air.bag, banco.couro, sensor.ponto.cego, cambio.automatico, cambio.borboleta, ");
-    printf("controle.estabilidade, start.stop, camera.360, ar.condicionado, abs, ");
-    printf("sensor.estacionamento, partida.sem.chave\n");
+    printf("- air.bag\n");
+    printf("- banco.couro\n");
+    printf("- sensor.ponto.cego\n");
+    printf("- cambio.automatico\n");
+    printf("- cambio.borboleta\n");
+    printf("- controle.estabilidade\n");
+    printf("- start.stop\n");
+    printf("- camera.360\n");
+    printf("- ar.condicionado\n");
+    printf("- abs\n");
+    printf("- sensor.estacionamento\n");
+    printf("- partida.sem.chave\n");
     for (int i = 0; i < 12; i++) {
         int valor;
         if (scanf("%d", &valor) != 1 || (valor != 0 && valor != 1)) {
-            printf("Opcional inválido! Use apenas 0 ou 1.\n");
+            printf("Opcional invalido! Use apenas 0 ou 1.\n");
             fclose(arquivo);
             return 0;
         }
@@ -582,7 +509,7 @@ int MostrarCarroDispo_selecao(){
     int encontrados = 0;
     rewind(arquivo);
     printf("=======================================\n");
-    printf("Carros disponíveis com os opcionais selecionados:\n");
+    printf("Carros disponiveis com os opcionais selecionados:\n");
     while (fread(&carro, sizeof(struct CARRO), 1, arquivo) == 1) {
         if (carro.ativo) {
             int todos_presentes = 1;
@@ -593,24 +520,26 @@ int MostrarCarroDispo_selecao(){
                 }
             }
             if (todos_presentes) {
-                printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustível: %s | Cor: %s | Preço: R$%.2f | Opcionais: ",
+                printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustível: %s | Cor: %s | Preço: R$%.2f\n",
                        carro.placa, carro.marca, carro.modelo, carro.ano_fabricacao,
                        carro.combustivel, carro.cor, carro.preco_compra);
+
+                printf("Opcionais:\n");
                 for (int j = 0; j < 12; j++) {
                     if (carro.opcional[j]) {
                         switch (j) {
-                            case 0: printf("air.bag "); break;
-                            case 1: printf("banco.couro "); break;
-                            case 2: printf("sensor.ponto.cego "); break;
-                            case 3: printf("cambio.automatico "); break;
-                            case 4: printf("cambio.borboleta "); break;
-                            case 5: printf("controle.estabilidade "); break;
-                            case 6: printf("start.stop "); break;
-                            case 7: printf("camera.360 "); break;
-                            case 8: printf("ar.condicionado "); break;
-                            case 9: printf("abs "); break;
-                            case 10: printf("sensor.estacionamento "); break;
-                            case 11: printf("partida.sem.chave "); break;
+                            case 0: printf("- air.bag\n"); break;
+                            case 1: printf("- banco.couro\n"); break;
+                            case 2: printf("- sensor.ponto.cego\n"); break;
+                            case 3: printf("- cambio.automatico\n"); break;
+                            case 4: printf("- cambio.borboleta\n"); break;
+                            case 5: printf("- controle.estabilidade\n"); break;
+                            case 6: printf("- start.stop\n"); break;
+                            case 7: printf("- camera.360\n"); break;
+                            case 8: printf("- ar.condicionado\n"); break;
+                            case 9: printf("- abs\n"); break;
+                            case 10: printf("- sensor.estacionamento\n"); break;
+                            case 11: printf("- partida.sem.chave\n"); break;
                         }
                     }
                 }
@@ -672,7 +601,7 @@ void InserirCliente() {
         return;
     }
     
-    // CORREÇÃO: Abre o arquivo binário para salvar
+    
     arquivo = abrir_arquivo_clientes("ab"); 
     if (arquivo == NULL) return;
 
@@ -698,7 +627,7 @@ void AlterarRendaCliente() {
         return;
     }
 
-    printf("Digite o código do cliente: ");
+    printf("Digite o codigo do cliente: ");
     if (scanf("%d", &cod) != 1) {
         fclose(arquivo);
         return;
