@@ -4,65 +4,65 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
-
-int comparar_carro_marca_modelo(const void *a, const void *b);
-
-// 1. PROTÓTIPOS - MÓDULO CARRO (carro.c)
-// ===================================
-void InserirCarro();
-void ExcluirCarro();
-void MostrarCarroDisp_marca_modelo();
-int MostrarCarroDispo_selecao();
-
-// ===================================
-// 2. PROTÓTIPOS - MÓDULO CLIENTE (cliente.c)
-// ===================================
-void InserirCliente();
-void AlterarRendaCliente();
-void MostrarClientesOrdenadosNome();
-
-// ===================================
-// 3. PROTÓTIPOS - MÓDULO VENDA (venda.c)
-// ===================================
-void InserirVenda();
-void ExcluirVenda();
-void MostrarCarrosVend_marca();
-void InformarQuantidadeSomaPreco();
-void InformarLucroTotal();
-
-// 4. PROTÓTIPOS - FUNÇÕES DO PRÓPRIO MAIN.C (Se existirem)
-// (Suas funções de menu)
-void MenuCarro();
-void MenuCliente();
-void MenuVenda();
-void mostrarMenu();
+#include <ctype.h> 
 
 
-
-//CONFIGURACAO
+// CONTEÚDO AUXILIAR GERAL E CONSTANTES 
 
 #define ARQ_CARRO "carros.bin"
 #define ARQ_CLIENTE "clientes.bin"
 #define ARQ_VENDA "vendas.bin"
 #define MAX_REGISTRO 500
 
+// Variáveis Globais de Geração
+char *MARCAS[] = {"bmw", "fiat", "chevrolet"};
+const char *MODELOS_BMW[] = {"320i", "x1", "x5"};
+const char *MODELOS_FIAT[] = {"mobi", "toro", "uno"};
+const char *MODELOS_CHEVROLET[] = {"celta", "astra", "tracker"};
+const char *COMBUSTIVEIS[] = {"alcool", "gasolina", "flex"};
+const char *CORES[] = {"branca", "prata", "preta", "cinza", "bi-color"};
+const char *NOMES[] = {"Joao Pedro", "Ryan", "Vinicius", "Yzamak", "Amanda", "Gleyci"};
+const char *SOBRENOMES[] = {"Schons", "Martins", "Amancio", "Campos", "Meneguete", "Pereira", "Correa"};
+const char *BAIRRO[] = {"CENTRO", "Sibipiruna", "Flamboyant"};
+const char *RUA[] = {"Avenida 8", "Teiji Matsui", "Major Pedro H. Cavalcante", "Rua 12", "Rua P9"};
+const char *CIDADE[] = {"Dourados", "Chapadao do Sul", "Vicentina"};
+const char *ESTADO[] = {"MS"};
+const char *CEP[] = {"79.560-000", "79.823-640", "79.710-000"};
 
-//auxiliares
-// Funções de Busca
-int buscar_carro_por_placa(const char *placa, struct CARRO *c_out);
-int buscar_cliente_por_codigo(int codigo, struct CLIENTE *cli_out);
 
-// Funções de Checagem
-int carro_foi_vendido(const char *placa);
+// Estrutura Auxiliar de Venda 
+struct VENDIDOS_AUX{
+    char modelo[TAM];
+    char placa[9];
+    int ano_fabircacao;
+    char nome_cliente[TAM];
+};
 
-// Funções de Geração (Para uso no código)
-void gerar_dados_carro(struct CARRO *c);
+// Auxiliares/Geração
+static void inicializar_rand();
+void gerar_placa(char placa[9]);
+void gerar_dados_carros(struct CARRO *c);
 void mostrar_carro(const struct CARRO *carro);
 void gerar_dados_clientes(struct CLIENTE *cliente);
 void mostrar_cliente(const struct CLIENTE *cli);
+static FILE *abrir_arquivo(const char *nome_arq, const char *modo_abertura);
+static int arquivo_nao_vazio(const char *arquivo_nome);
+int data_valida_simples(int dia, int mes, int ano);
 
-// Funções de Menu
+// Módulos de I/O
+static FILE *abrir_arquivo_carro(const char *modo_abertura);
+static FILE *abrir_arquivo_clientes(const char *modo_abertura);
+
+// Funções de Busca/Regra
+int buscar_carro_por_placa(const char *placa, struct CARRO *c_out);
+int buscar_cliente_por_codigo(int codigo, struct CLIENTE *cli_out);
+int carro_foi_vendido(const char *placa);
+
+// Funções de Ordenação
+int comparar_carro_marca_modelo(const void *a, const void *b);
+int comparar_vendidos_modelo(const void *a, const void *b); 
+
+// Funções Principais
 void InserirCarro();
 void ExcluirCarro();
 void MostrarCarroDisp_marca_modelo();
@@ -74,7 +74,7 @@ void MostrarClientesOrdenadosNome();
 
 void InserirVenda();
 void ExcluirVenda();
-void MostrarCarrosVend_marca();
+void MostrarCarrosVend_Marca();
 void InformarQuantidadeSomaPreco();
 void InformarLucroTotal();
 
@@ -83,14 +83,51 @@ void MenuCliente();
 void MenuVenda();
 void mostrarMenu();
 
-//GERADOR
-char *MARCAS[] = {"bmw", "fiat", "chevrolet"};
-const char *MODELOS_BMW[] = {"320i", "x1", "x5"};
-const char *MODELOS_FIAT[] = {"mobi", "toro", "uno"};
-const char *MODELOS_CHEVROLET[] = {"celta", "astra", "tracker"};
-const char *COMBUSTIVEIS[] = {"alcool", "gasolina", "flex"};
-const char *CORES[] = {"branca", "prata", "preta", "cinza", "bi-color"};
 
+// OBJETIVO: Valida se a data (dia, mês, ano) é logicamente possível
+//parametros: dia, mes e ano
+//retorno: 0 se for invalido, 1 se for valido
+
+int data_valida_simples(int dia, int mes, int ano) {
+    // 1. Faixa de Anos (Pode ajustar 2025 para 2030, por exemplo, se quiser mais flexibilidade)
+    if (ano < 1980 || ano > 2025) {
+        printf("Ano (%d) deve ser entre 1980 e 2025. Digite novamente a data (dd mm aaaa)\n", ano);
+        return 0;
+    }
+
+    // 2. Validação do Mês
+    if (mes < 1 || mes > 12) {
+        printf("Mes (%d) deve ser entre 1 e 12. Digite novamente a data (dd mm aaaa)\n", mes);
+        return 0;
+    }
+
+    // 3. Validação do Dia
+    if (dia < 1 || dia > 31) {
+        printf("Dia (%d) deve ser entre 1 e 31. Digite novamente a data (dd mm aaaa)\n", dia);
+        return 0;
+    }
+
+    // 4. Checagem de Limite de Dias por Mês (A CHAVE DA VALIDAÇÃO)
+    if (mes == 4 || mes == 6 || mes == 9 || mes == 11) {
+        // Meses com 30 dias (Abril, Junho, Setembro, Novembro)
+        if (dia > 30) {
+            printf("Mes %d so tem 30 dias. Digite novamente a data (dd mm aaaa)\n", mes);
+            return 0;
+        }
+    } else if (mes == 2) {
+        if (dia > 28) {
+            printf("Fevereiro (%d) so tem 28 dias. Digite novamente a data (dd mm aaaa)\n", dia);
+            return 0;
+        }
+    }
+
+    return 1; // Data válida
+}
+
+
+//OBJETIVO: apenas inicializar a randominazacao
+//PARAMETRO: Nenhum
+//RETORNO: Nenhum
 static void inicializar_rand(){
     static int inicializado = 0; //existe apenas uma vez
     if (!inicializado){
@@ -100,20 +137,21 @@ static void inicializar_rand(){
 }
 
 int num_marca = 3;
-
 int proximo_codigo_cliente = 1;
 
 //gerador carro
 void gerar_placa(char placa[9]);
-void gerar_dados_carro(struct CARRO *c);
+void gerar_dados_carros(struct CARRO *c);
 void mostrar_carro(const struct CARRO *carro);
 
 
 //gerador cliente
 void gerar_dados_clientes(struct CLIENTE *cliente);
-void mostrar_cliente();
+void mostrar_cliente(const struct CLIENTE *cli);
 
-
+//OBJETIVO: Gerar placa do carro
+//PARAMETRO: vetor placa aonde sera guardado a placa
+//RETORNO: Nenhum
 void gerar_placa(char placa[9]){    //AAA-1234
     inicializar_rand();
     for (int i = 0; i < 3; i++){
@@ -135,6 +173,9 @@ void gerar_placa(char placa[9]){    //AAA-1234
 void gerar_dados_carros(struct CARRO *carro){
     inicializar_rand();
 
+    for(int i = 0; i < TAM; i++){
+        carro->marca[i] = '\0';
+    }
     //GERA A PLACA
     gerar_placa(carro->placa); //gera a placa randomizada
 
@@ -192,7 +233,10 @@ void mostrar_carro(const struct CARRO *carro){
     }
 
 }
-//GERAR O CLIENTE
+
+//OBJETIVO: Gerar dados do cliente
+//PARAMETRO: Registro de um cliente
+//RETORNO: Nenhum
 void gerar_dados_clientes(struct CLIENTE *cliente){
     inicializar_rand();
 
@@ -231,7 +275,7 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
     strcpy(cliente->endereco.rua, RUA[rand() % 3]);
     strcpy(cliente->endereco.bairro, BAIRRO[rand() % 3]);
     strcpy(cliente->endereco.estado, ESTADO[0]);
-    cliente->renda_mensal = rand() % 10000;
+    cliente->renda_mensal = (float) (1 + rand() % 9999);
     cliente->endereco.numero = rand() % 999;
     //char telefone[14];  //99 99999-9999
     cliente->celular->telefone[0] = '6';
@@ -244,11 +288,14 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
     for (int i = 9; i < 13; i++){
         cliente->celular->telefone[i] = '0' + (rand() % 10);
     }
-    cliente->celular->telefone[13] = '\0';
+    cliente->celular[0].telefone[13] = '\0';
     cliente->ativo = 1;
     proximo_codigo_cliente++;
 }
 
+//OBJETIVO: mostrar dados do cliente
+//PARAMETRO: Registro de um cliente
+//RETORNO: Nenhum
 void mostrar_cliente(const struct CLIENTE *cli) {
     printf("Codigo: %d\n", cli->codigo);
     printf("Nome: %s\n", cli->nome);
@@ -257,7 +304,9 @@ void mostrar_cliente(const struct CLIENTE *cli) {
     printf("Endereco: %s, %d - %s/%s\n", cli->endereco.rua, cli->endereco.numero, cli->endereco.cidade, cli->endereco.estado);
 }
 
-//auxiliares
+//OBJETIVO: funcao para abrir arquivo e verificar ele e tals
+//PARAMETRO: nome do arquivo e a flag de abertura
+//RETORNO: arquivo, caso for != null
 static FILE *abrir_arquivo(const char *nome_arq, const char *modo_abertura) {
     FILE *arq = fopen(nome_arq, modo_abertura);
     if (arq == NULL) {
@@ -268,7 +317,9 @@ static FILE *abrir_arquivo(const char *nome_arq, const char *modo_abertura) {
     return arq;
 }
 
-// Implementação da busca de carro
+//OBJETIVO: Gerar dados do carro 
+//PARAMETRO: Registro de um carro
+//RETORNO: Nenhum
 int buscar_carro_por_placa(const char *placa, struct CARRO *c_out) {
     FILE *arquivo = abrir_arquivo(ARQ_CARRO, "rb");
     struct CARRO carro_atual;
@@ -286,11 +337,13 @@ int buscar_carro_por_placa(const char *placa, struct CARRO *c_out) {
     return encontrado;
 }
 
-// Implementação da busca de cliente
+// apenas chamada
 int buscar_cliente_por_codigo(int codigo, struct CLIENTE *cli_out);
 
 
-//CARRO
+//OBJETIVO: funcao para abrir arquivo e verificar ele e tals
+//PARAMETRO: nome do arquivo e a flag de abertura
+//RETORNO: arquivo, caso for != null
 FILE *abrir_arquivo_carro(const char *modo_abertura){
     FILE *arquivo = fopen(ARQ_CARRO, modo_abertura);
     if (arquivo == NULL){
@@ -302,6 +355,9 @@ FILE *abrir_arquivo_carro(const char *modo_abertura){
     return arquivo;
 }
 
+//OBJETIVO: Inserir carro
+//PARAMETRO: nenhum
+//RETORNO: nenhum
 void InserirCarro(){
     FILE *arquivo = abrir_arquivo_carro("a+b");
     if (arquivo == NULL) {
@@ -329,7 +385,7 @@ void InserirCarro(){
     }
 
     
-    if (fwrite(&novo_carro, sizeof(struct CLIENTE), 1, arquivo) != 1) {
+    if (fwrite(&novo_carro, sizeof(struct CARRO), 1, arquivo) != 1) {
         printf("=======================================\n");
         printf("Erro ao gravar o cliente no arquivo.\n");
     } else {
@@ -344,9 +400,28 @@ void InserirCarro(){
     fclose(arquivo);
 }
 
+//OBJETIVO: Excluir carro
+//PARAMETRO: nenhum
+//RETORNO: nenhum
 void ExcluirCarro(){
-    FILE *arquivo = abrir_arquivo_carro("r+b");
+    FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        return;
+    }
+
+    // Contar carros ativos
+    struct CARRO carro;
+    int count = 0;
+    rewind(arquivo);
+    while (fread(&carro, sizeof(struct CARRO), 1, arquivo) == 1) {
+        if (carro.ativo) {
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        printf("Nenhum carro disponivel para excluir!\n");
+        fclose(arquivo);
         return;
     }
 
@@ -370,7 +445,13 @@ void ExcluirCarro(){
         return;
     }
 
-    struct CARRO carro;
+    if(carro_foi_vendido(placa)){
+        printf("ERRO: Carro com placa %s foi vendido e NAO pode ser excluido.\n", placa);
+        fclose(arquivo);
+        return;
+    }
+
+
     int encontrado = 0;
     long posicao;
     rewind(arquivo);
@@ -451,18 +532,18 @@ void MostrarCarroDisp_marca_modelo(){
         for (int j = 0; j < 12; j++) {
             if (carros[i].opcional[j]) {
                 switch (j) {
-                    case 0: printf("air.bag\n"); break;
-                    case 1: printf("banco.couro\n"); break;
-                    case 2: printf("sensor.ponto.cego\n"); break;
-                    case 3: printf("cambio.automatico\n"); break;
-                    case 4: printf("cambio.borboleta\n"); break;
-                    case 5: printf("controle.estabilidade\n"); break;
-                    case 6: printf("start.stop\n"); break;
-                    case 7: printf("camera.360\n"); break;
-                    case 8: printf("ar.condicionado\n"); break;
-                    case 9: printf("abs\n"); break;
-                    case 10: printf("sensor.estacionamento\n"); break;
-                    case 11: printf("partida.sem.chave\n"); break;
+                    case 0: printf("- air.bag\n"); break;
+                    case 1: printf("- banco.couro\n"); break;
+                    case 2: printf("- sensor.ponto.cego\n"); break;
+                    case 3: printf("- cambio.automatico\n"); break;
+                    case 4: printf("- cambio.borboleta\n"); break;
+                    case 5: printf("- controle.estabilidade\n"); break;
+                    case 6: printf("- start.stop\n"); break;
+                    case 7: printf("- camera.360\n"); break;
+                    case 8: printf("- ar.condicionado\n"); break;
+                    case 9: printf("- abs\n"); break;
+                    case 10: printf("- sensor.estacionamento\n"); break;
+                    case 11: printf("- partida.sem.chave\n"); break;
                 }
             }
         }
@@ -479,71 +560,112 @@ int MostrarCarroDispo_selecao(){
         return 0;
     }
 
-    int opcionais[12] = {0};
-    printf("=======================================\n");
-    printf("MOSTRAR CARROS POR OPCIONAIS\n");
-    printf("Selecione os opcionais desejados (0 ou 1 para cada, na ordem):\n");
-    printf("- air.bag\n");
-    printf("- banco.couro\n");
-    printf("- sensor.ponto.cego\n");
-    printf("- cambio.automatico\n");
-    printf("- cambio.borboleta\n");
-    printf("- controle.estabilidade\n");
-    printf("- start.stop\n");
-    printf("- camera.360\n");
-    printf("- ar.condicionado\n");
-    printf("- abs\n");
-    printf("- sensor.estacionamento\n");
-    printf("- partida.sem.chave\n");
-    for (int i = 0; i < 12; i++) {
-        int valor;
-        if (scanf("%d", &valor) != 1 || (valor != 0 && valor != 1)) {
-            printf("Opcional invalido! Use apenas 0 ou 1.\n");
-            fclose(arquivo);
-            return 0;
-        }
-        opcionais[i] = valor;
-    }
-
+    // Contar carros ativos
     struct CARRO carro;
-    int encontrados = 0;
+    int count = 0;
+    int opcionais_selecionados[12] = {0}; 
+    int total_opcionais_selecionados = 0;
+    char input_buffer[5];
+    int num_opcional;
+
     rewind(arquivo);
-    printf("=======================================\n");
-    printf("Carros disponiveis com os opcionais selecionados:\n");
     while (fread(&carro, sizeof(struct CARRO), 1, arquivo) == 1) {
         if (carro.ativo) {
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        printf("Nenhum carro disponivel para mostrar!\n");
+        fclose(arquivo);
+        return 0;
+    }
+
+    printf("=======================================\n");
+    printf("MOSTRAR CARROS POR SELECAO DE OPCIONAIS\n");
+    
+    // 1. LISTA E LOOP INTERATIVO (Melhor Usabilidade)
+    do {
+        printf("---------------------------------------\n");
+        printf("OPCIONAIS SELECIONADOS (%d):\n", total_opcionais_selecionados);
+        for (int i = 0; i < 12; i++) {
+            // Exibe [X] se selecionado, [ ] se não
+            printf("%2d. %-20s [%c]\n", i + 1, opcionais[i], opcionais_selecionados[i] ? 'X' : ' ');
+            //                                                              
+        }
+        printf("---------------------------------------\n");
+        printf("Digite o NUMERO do opcional (1 a 12) para alternar, ou 'F' para buscar:\n");
+        
+        printf("Opção: ");
+        if (scanf("%4s", input_buffer) != 1) { 
+            while (getchar() != '\n' && !feof(stdin)); // Limpa buffer
+            continue;
+        }
+
+        if (input_buffer[0] == 'F' || input_buffer[0] == 'f') {
+            break; // Sai do loop de seleção
+        }
+
+        // Tenta converter a entrada para número
+        if (sscanf(input_buffer, "%d", &num_opcional) == 1) {
+            int indice = num_opcional - 1; // Ajuste para 0 a 11
+            
+            if (indice >= 0 && indice < 12) {
+                // Alterna o status e o contador de selecionados
+                if (opcionais_selecionados[indice] == 0) {
+                    opcionais_selecionados[indice] = 1;
+                    total_opcionais_selecionados++;
+                } else {
+                    opcionais_selecionados[indice] = 0;
+                    total_opcionais_selecionados--;
+                }
+            } else {
+                printf("Numero de opcional invalido.\n");
+            }
+        } else {
+            printf("Entrada invalida.\n");
+            while (getchar() != '\n' && !feof(stdin));
+        }
+    } while (1); // Continua até que 'F' seja digitado
+    
+    
+    if (total_opcionais_selecionados == 0) {
+        printf("Nenhum opcional selecionado. Operacao cancelada.\n");
+        fclose(arquivo);
+        return 0;
+    }
+
+    
+    int encontrados = 0;
+    rewind(arquivo);
+
+    printf("=======================================\n");
+    printf("Carros disponiveis com os %d opcionais selecionados:\n", total_opcionais_selecionados);
+    
+    // exibição dos resultados
+    printf("%-8s | %-12s | %-12s | %-10s\n", "Placa", "Marca", "Modelo", "Preço");
+    printf("--------------------------------------------------\n");
+
+    while (fread(&carro, sizeof(struct CARRO), 1, arquivo) == 1) {
+        
+        
+        if (carro.ativo && !carro_foi_vendido(carro.placa)) { 
+            
             int todos_presentes = 1;
             for (int i = 0; i < 12; i++) {
-                if (opcionais[i] == 1 && carro.opcional[i] == 0) {
+                // Se o usuário QUER o opcional (opcionais_selecionados[i]==1)
+                // E o carro NÃO TEM (carro.opcional[i]==0), o filtro falha.
+                if (opcionais_selecionados[i] == 1 && carro.opcional[i] == 0) {
                     todos_presentes = 0;
                     break;
                 }
             }
+            
             if (todos_presentes) {
-                printf("Placa: %s | Marca: %s | Modelo: %s | Ano: %d | Combustível: %s | Cor: %s | Preço: R$%.2f\n",
-                       carro.placa, carro.marca, carro.modelo, carro.ano_fabricacao,
-                       carro.combustivel, carro.cor, carro.preco_compra);
+                // Exibe o carro em formato tabular 
+                printf("%-8s | %-12s | %-12s | R$%.2f\n",
+                       carro.placa, carro.marca, carro.modelo, carro.preco_compra);
 
-                printf("Opcionais:\n");
-                for (int j = 0; j < 12; j++) {
-                    if (carro.opcional[j]) {
-                        switch (j) {
-                            case 0: printf("- air.bag\n"); break;
-                            case 1: printf("- banco.couro\n"); break;
-                            case 2: printf("- sensor.ponto.cego\n"); break;
-                            case 3: printf("- cambio.automatico\n"); break;
-                            case 4: printf("- cambio.borboleta\n"); break;
-                            case 5: printf("- controle.estabilidade\n"); break;
-                            case 6: printf("- start.stop\n"); break;
-                            case 7: printf("- camera.360\n"); break;
-                            case 8: printf("- ar.condicionado\n"); break;
-                            case 9: printf("- abs\n"); break;
-                            case 10: printf("- sensor.estacionamento\n"); break;
-                            case 11: printf("- partida.sem.chave\n"); break;
-                        }
-                    }
-                }
-                printf("\n");
                 encontrados++;
             }
         }
@@ -571,15 +693,7 @@ int comparar_carro_marca_modelo(const void *a, const void *b) {
 
 //CLIENTE
 static FILE *abrir_arquivo_clientes(const char *modo_abertura) {
-    FILE *arquivo = fopen(ARQ_CLIENTE, modo_abertura);
-    if (arquivo == NULL) {
-        // Reporta erro apenas para modos de escrita/alteração
-        if (strcmp(modo_abertura, "rb+") == 0 || strcmp(modo_abertura, "ab") == 0) {
-             printf("Não foi possível abrir ou criar o arquivo de clientes.\n");
-             perror("Detalhes do erro");
-        }
-    }
-    return arquivo;
+    return abrir_arquivo(ARQ_CLIENTE, modo_abertura);
 }
 
 
@@ -600,7 +714,7 @@ void InserirCliente() {
         printf("ERRO: Renda mensal invalida. Insercao cancelada.\n");
         return;
     }
-    
+    novo_cliente.ativo = 1;
     
     arquivo = abrir_arquivo_clientes("ab"); 
     if (arquivo == NULL) return;
@@ -666,7 +780,7 @@ void AlterarRendaCliente() {
     }
 
     if (!encontrado)
-        printf("Cliente com código %d nao encontrado ou inativo.\n", cod);
+        printf("Cliente com codigo %d nao encontrado ou inativo.\n", cod);
 
     fclose(arquivo);
 }
@@ -733,7 +847,7 @@ int buscar_cliente_por_codigo(int codigo, struct CLIENTE *c_out) {
 
     if (arquivo == NULL) return 0;
 
-    while (fread(&c, sizeof(struct CLIENTE), 1, arquivo)) {
+    while (fread(&c, sizeof(struct CLIENTE), 1, arquivo) == 1) {
         if (c.codigo == codigo && c.ativo == 1) {
             // Copia os dados para o endereço de saída fornecido (SEM MALLOC)
             if (c_out) *c_out = c; 
@@ -748,12 +862,20 @@ int buscar_cliente_por_codigo(int codigo, struct CLIENTE *c_out) {
 
 //venda
 int carro_foi_vendido(const char *placa){
-    FILE *arquivo = abrir_arquivo(ARQ_CARRO, "rb");
+    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb");
+    struct VENDA_CARRO carro_atual;
+    if (arquivo == NULL){
+        return 0;
+    }
     int vendido = 0;
 
-    /*
-    implementar
-    */
+    while(fread(&carro_atual, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
+        if(strcmp(placa, carro_atual.placa_carro) == 0){
+            if(carro_atual.ativo == 1){
+                vendido = 1;
+            }
+        }
+    }
 
     fclose(arquivo);
     return vendido;
@@ -766,6 +888,23 @@ int carro_foi_vendido(const char *placa){
     struct DATA data_venda;
     int ativo; //1 se a venda esta ativa, ou seja, não foi excluída, ou 0 se ela foi excluída
 */
+//BLOCO AUXILIAR PARA VENDAS
+
+static int arquivo_nao_vazio(const char *arquivo_nome){
+    FILE *arquivo = fopen(arquivo_nome, "rb");
+
+    if (arquivo == NULL){
+        return 0;
+    }
+
+    fseek(arquivo, 0, SEEK_END);
+
+    long tamanho = ftell(arquivo);
+    fclose(arquivo);
+
+    return (tamanho > 0);
+}
+
 void InserirVenda(){
 
     struct VENDA_CARRO nova_venda;
@@ -775,38 +914,66 @@ void InserirVenda(){
     struct CARRO carro_info;
     struct CLIENTE cliente_info;
 
+    if(!arquivo_nao_vazio(ARQ_CARRO)){
+        printf("=======================================\n");
+        printf("ERRO: Impossivel registrar venda, pois nenhum carro foi registrado!\n");
+        return;
+    }
+
+    if (!arquivo_nao_vazio(ARQ_CLIENTE)){
+        printf("=======================================\n");
+        printf("ERRO: Impossivel registrar venda, pois nenhum cliente foi registrado!\n");
+        return;
+    }
 
     printf("=======================================\n");
     printf("INSERIR VENDA\n");
 
     printf("Digite a PLACA do carro a ser vendido (AAA-1234): \n");
-    if (scanf("%8s", placa_busca) != 1)
+    if (scanf("%8s", placa_busca) != 1){
         return;
+    }
 
+    // Validar formato da placa
+    if (strlen(placa_busca) != 8 || 
+        !isalpha(placa_busca[0]) || !isalpha(placa_busca[1]) || !isalpha(placa_busca[2]) ||
+        placa_busca[3] != '-' ||
+        !isdigit(placa_busca[4]) || !isdigit(placa_busca[5]) || 
+        !isdigit(placa_busca[6]) || !isdigit(placa_busca[7])) {
+        printf("Placa invalida! Use o formato AAA-1234.\n");
+        return;
+    }
+    
+
+    placa_busca[8] = '\0';
     if (carro_foi_vendido(placa_busca)){
         printf("=======================================\n");
         printf("Carro com a placa %s ja foi vendido!\n", placa_busca);
         return;
     }
 
-    /*
-    if (!buscar_carro_por_placa(placa_busca, &carro_info)){             implementar o buscar carro por placa nos auxiliares
-        printf("CArro inativo e tals");
+    
+    if (!buscar_carro_por_placa(placa_busca, &carro_info)){             
+        printf("ERRO: Carro com placa %s nao encontrado. Verifique se a placa esta correta ou se o carro foi excluido do cadastro.\n", placa_busca);
         return;
     }
-    */
+    
     printf("=======================================\n");
     printf("Digite o CODIGO do cliente comprador: \n");
     if(scanf("%d", &codigo_cliente) != 1){
         return;
     }
 
-    /*
-    if (!buscar_cliente_por_codigo(codigo_cliente, &cliente_info)){             implementar o buscar carro por placa nos auxiliares
+    
+    if (!buscar_cliente_por_codigo(codigo_cliente, &cliente_info)){            
         printf("cliente nao encontrado");
         return;
     }
-    */
+
+    strcpy(nova_venda.placa_carro, placa_busca);
+    nova_venda.codigo_cliente = codigo_cliente;
+    nova_venda.ativo = 1;
+    
    
     printf("=======================================\n");
     printf("Digite o PRECO de venda R$: ");
@@ -819,18 +986,18 @@ void InserirVenda(){
 
     printf("=======================================\n");
     printf("Digite a data de venda (dd mm aaaa): \n");
-    int aux = 0;
 
     do {
-        if (scanf("%d %d %d", &nova_venda.data_venda.dia, &nova_venda.data_venda.mes, &nova_venda.data_venda.ano) != 3){
-            printf("Data invalida. Por favor, digite 3 numeros (dia mes ano):\n");
-            while (getchar() != '\n' && !feof(stdin));
-        } else {
-            aux = 1;
+        
+        int leitura_sucesso = scanf("%d %d %d", &nova_venda.data_venda.dia, &nova_venda.data_venda.mes, &nova_venda.data_venda.ano);
+        
+        if (leitura_sucesso == 3 && data_valida_simples(nova_venda.data_venda.dia, nova_venda.data_venda.mes, nova_venda.data_venda.ano)) 
+        {
+            break; // Data é válida, sai do loop
         }
+    } while(1);
 
-    } while(aux != 1);
-
+    
     //Gravar as informacoes adquiridas no arquivo
     FILE *arquivo = abrir_arquivo(ARQ_VENDA, "ab"); //ab eh pra gravacao, sempre escreve no fim do arquivo
     if (arquivo == NULL){
@@ -841,43 +1008,302 @@ void InserirVenda(){
         printf("ERRO ao gravar a venda no registro!\n");
     } else {
         printf("Venda registrada com sucesso!\n");
-        printf("Carro: %s (%s) | Cliente: %s\n", carro_info.modelo, nova_venda.placa_carro, cliente_info.nome);
+        printf("Carro: %s - %s | Cliente: %s\n", carro_info.modelo, nova_venda.placa_carro, cliente_info.nome);
+    
     }
     fclose(arquivo);
 }
 
 void ExcluirVenda(){
-    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "ab");
+    char placa[9];
+    
+
+    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb+");
+    if(arquivo == NULL){
+        printf("Nenhuma venda registrada para exclusao.\n");
+        return;
+    }
+
+    struct VENDA_CARRO check_venda;
+    int contador_ativo = 0;
+    
+    // Volta o ponteiro para o início para garantir a leitura completa
+    rewind(arquivo); 
+    
+    while (fread(&check_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1) {
+        if (check_venda.ativo) {
+            contador_ativo++;
+        }
+    }
+
+    if (contador_ativo == 0) {
+        printf("Nenhuma venda ATIVA disponivel para exclusao. (Total: 0)\n");
+        fclose(arquivo);
+        return; // Retorna antes de pedir a placa
+    }
+
+
+    printf("=======================================\n");
+    printf("EXCLUIR VENDA\n");
+    printf("Digite a PLACA do carro que deseja excluir a VENDA!(AAA-XXXX):\n");
+    if(scanf("%8s", placa) != 1){
+        printf("Placa invalida, por favor digite uma placa do modelo valido (AAA-XXXX)\n");
+        fclose(arquivo);
+        return;
+    }
+
+    struct VENDA_CARRO nova_venda;
+    int encontrado = 0;
+    long posicao_atual = 0;
+    rewind(arquivo);
+    while (fread(&nova_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1) {
+
+        if (strcmp(nova_venda.placa_carro, placa) == 0 && nova_venda.ativo == 1){
+
+            fseek(arquivo, posicao_atual, SEEK_SET);
+            nova_venda.ativo = 0;
+            if(fwrite(&nova_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
+                printf("Carro com placa %s teve sua venda excluida com sucesso!\n", nova_venda.placa_carro);
+                encontrado = 1;
+            } else {
+                printf("ERRO: Falha ao reescrever o registro de venda no arquivo.\n");
+            }
+            
+            break;
+        }
+        posicao_atual = ftell(arquivo);
+    }
+
+    if(!encontrado){
+        printf("Venda para o carro com placa %s nao encontrada ou ja inativa.\n", placa);
+    }
 
     fclose(arquivo);
 }
 
-struct VENDIDOS_AUX{
-    char modelo[TAM];
-    char placa[9];
-    int ano_fabircacao;
-    char nome_cliente[TAM];
-};
 
-int comparar_vendidos_modelo(){
+
+int comparar_vendidos_modelo(const void *a, const void *b){
     //ver sobre qsort para fazer uma comparacao por modelo crescente
+    struct VENDIDOS_AUX *carro_a = (struct VENDIDOS_AUX *)a;
+    struct VENDIDOS_AUX *carro_b = (struct VENDIDOS_AUX *)b;
+    
+    return strcmp(carro_a->modelo, carro_b->modelo);
 }
 
 void MostrarCarrosVend_Marca(){
-    //uso de array estatico de tamanho fixo para ordenacao em memoria, porem ver se tem outras possibilidades.
+    struct VENDIDOS_AUX lista_vendidos [MAX_REGISTRO];
+    struct VENDA_CARRO venda_atual;
+    struct CARRO carro_info;
+    struct CLIENTE cliente_info;
+    int num_registro = 0; //contador de registro no array
+    
+
+    char marca_busca[TAM];
+    
+    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb");
+        if(arquivo == NULL){
+            printf("Nenhuma venda registrada para ordenar!.\n");
+            return;
+        }
+
+
+    struct VENDA_CARRO check_venda;
+    int contador_ativo = 0;
+    
+    // Volta o ponteiro para o início para garantir a leitura completa
+    rewind(arquivo); 
+    
+    while (fread(&check_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1) {
+        if (check_venda.ativo) {
+            contador_ativo++;
+        }
+    }
+
+    if (contador_ativo == 0) {
+        printf("Nenhuma venda ATIVA disponivel para mostrar as vendas!\n");
+        fclose(arquivo);
+        return; // Retorna antes de pedir a placa
+    }
+
+    printf("Digite a MARCA para listar os carros vendidos\n");
+    if(scanf("%49s", marca_busca) != 1){
+        printf("Marca invalida, tente novamente!\n");
+        fclose(arquivo);
+        return;
+    }
+    
+   // Converter a entrada do usuário para minúsculas
+    for(int i = 0; marca_busca[i]; i++){
+        marca_busca[i] = tolower((unsigned char)marca_busca[i]);
+    }
+    rewind(arquivo);
+    // 2. Leitura e Processamento (Apenas um loop)
+    while (fread(&venda_atual, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
+
+        if (venda_atual.ativo == 1){
+            // Buscar carro para obter a marca e verificar se está ativo
+            if(buscar_carro_por_placa(venda_atual.placa_carro, &carro_info)){
+                
+                // CRITÉRIO DE FILTRO: Marca do carro (lida do arquivo) deve ser igual à marca buscada
+                // (Ambas já em minúsculas ou consistentes)
+                if(strcmp(carro_info.marca, marca_busca) == 0){
+                    
+                    if(num_registro >= MAX_REGISTRO){
+                        printf("AVISO: Limite de %d registros para ordenacao atingido.\n", MAX_REGISTRO);
+                        break;
+                    }
+
+                    // 3. Busca do Cliente (Se o cliente não for encontrado, ele é "INATIVO")
+                    if (buscar_cliente_por_codigo(venda_atual.codigo_cliente, &cliente_info)){
+                        strcpy(lista_vendidos[num_registro].nome_cliente, cliente_info.nome);
+                    } else {
+                        // O problema do "CLIENTE INATIVO" ocorre aqui
+                        strcpy(lista_vendidos[num_registro].nome_cliente, "CLIENTE INATIVO");
+                    }
+
+                    // 4. Carrega os dados combinados no array
+                    strcpy(lista_vendidos[num_registro].modelo, carro_info.modelo);
+                    strcpy(lista_vendidos[num_registro].placa, venda_atual.placa_carro);
+                    lista_vendidos[num_registro].ano_fabircacao = carro_info.ano_fabricacao;
+                    
+                    num_registro++;
+                }
+            }
+        }
+    }
+    
+    // 5. Fechamento e Checagem de Resultados
+    fclose(arquivo);
+
+    if (num_registro == 0) {
+        printf("=======================================\n");
+        printf("Nao foi encontrada nenhuma venda para a marca '%s'. Verifique a digitacao.\n", marca_busca);
+        printf("=======================================\n");
+        return;
+    }
+
+    // 6. Ordenação e Exibição
+    qsort(lista_vendidos, num_registro, sizeof(struct VENDIDOS_AUX), comparar_vendidos_modelo);
+    
+    printf("=======================================\n");
+    printf("\nCARROS VENDIDOS ORDENADOS PELO MODELO (Total: %d)\n", num_registro);
+    printf("-------------------------------------------------\n");
+    printf("%-15s | %-8s | %-4s | %-40s\n", "MODELO", "PLACA", "ANO", "NOME CLIENTE");
+    printf("-------------------------------------------------\n");
+    for(int i = 0; i < num_registro; i++){
+        printf("%-15s | %-8s | %-4d | %-40s\n",
+        lista_vendidos[i].modelo,
+        lista_vendidos[i].placa,
+        lista_vendidos[i].ano_fabircacao,
+        lista_vendidos[i].nome_cliente);
+    }
+    printf("-------------------------------------------------\n");
 }
 
-void InformarQuantidadeSomaPreco(){
-    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb");
 
-    fclose(arquivo);
+
+void InformarQuantidadeSomaPreco(){
+    struct VENDA_CARRO venda_atual;
+
+    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb");
+        if(arquivo == NULL){
+            printf("Nenhuma venda registrada para informar!.\n");
+            return;
+        }
+
+    struct VENDA_CARRO check_venda;
+    int contador_ativo = 0;
+    
+    // Volta o ponteiro para o início para garantir a leitura completa
+    rewind(arquivo); 
+    
+    while (fread(&check_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1) {
+        if (check_venda.ativo) {
+            contador_ativo++;
+        }
+    }
+
+    if (contador_ativo == 0) {
+        printf("Nenhuma venda para mostrar soma total de preco!\n");
+        fclose(arquivo);
+        return; 
+    }
+        double soma_precos = 0.0;
+        int quantidade = 0;
+
+
+        while(fread(&venda_atual, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
+            if(venda_atual.ativo == 1){
+                quantidade++;
+                soma_precos += venda_atual.preco_venda;
+
+            }
+        }
+
+        fclose(arquivo);
+        printf("=======================================\n");
+        printf("\nQUANTIDADE DE CARRO(s) VENDIDO(s) (Total: %d)\n", quantidade);
+        printf("-------------------------------------------------\n");
+        printf("Soma dos precos vendidos: R$ %.2f\n", soma_precos);
+        printf("-------------------------------------------------\n");
 
 }
 
 void InformarLucroTotal(){
 
-    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb");
+    struct VENDA_CARRO venda_atual;
+    struct CARRO vendinha;
+    FILE *arquivo = abrir_arquivo(ARQ_VENDA, "rb+");
+        if(arquivo == NULL){
+            printf("Nenhuma venda registrada para informar!.\n");
+            return;
+        }
 
+    struct VENDA_CARRO check_venda;
+    int contador_ativo = 0;
+    
+    // Volta o ponteiro para o início para garantir a leitura completa
+    rewind(arquivo); 
+    
+    while (fread(&check_venda, sizeof(struct VENDA_CARRO), 1, arquivo) == 1) {
+        if (check_venda.ativo) {
+            contador_ativo++;
+        }
+    }
+
+    if (contador_ativo == 0) {
+        printf("Nenhuma venda ATIVA para mostrar o lucro\n");
+        fclose(arquivo);
+        return; 
+    }
+
+  
+
+        float lucro_total = 0.0f;
+       
+        while(fread(&venda_atual, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
+            if(venda_atual.ativo == 1){
+
+                if (buscar_carro_por_placa(venda_atual.placa_carro, &vendinha)){
+                    float lucro_venda_atual = venda_atual.preco_venda - vendinha.preco_compra;
+                    lucro_total += lucro_venda_atual;
+                } else {
+                    printf("AVISO: Carro %s vendido mas nao encontrado no cadastro (Custo desconhecido).\n", 
+                       venda_atual.placa_carro);
+                }
+                
+            }
+        }
+        
+        printf("=======================================\n");
+        printf("-------------------------------------------------\n");
+        if (lucro_total < 0 )
+            printf("Divida/Prejuizo Total: R$ %.2f\n", lucro_total);
+        else {
+            printf("Lucro de vendas de: R$ %.2f\n", lucro_total);
+        }
+        printf("-------------------------------------------------\n");
     fclose(arquivo);
 }
 
@@ -1015,13 +1441,13 @@ void MenuVenda(){
         case 'a':
             printf("=======================================\n");
             printf("INSERIR VENDA\n");
-            //InserirVenda();
+            InserirVenda();
             break;
 
         case 'b':
             printf("=======================================\n");
             printf("EXCLUIR VENDA\n");
-            //ExcluirVenda();
+            ExcluirVenda();
             break;
 
         case 'c':
@@ -1033,13 +1459,13 @@ void MenuVenda(){
         case 'd':
             printf("=======================================\n");
             printf("QUANTIDADE DE CARROS VENDIDOS COM SOMA DOS PRECOS\n");
-            //InformarQuantidadeSomaPreco();
+            InformarQuantidadeSomaPreco();
             break;
 
         case 'e':
             printf("=======================================\n");
             printf("LUCRO TOTAL DE VENDAS\n");
-            //InformarLucroTotal();
+            InformarLucroTotal();
             break;
 
         case 'f':
@@ -1051,7 +1477,7 @@ void MenuVenda(){
             printf("OPCAO INEXISTENTE\n");
             break;
         }
-    } while (opcao != 'e');
+    } while (opcao != 'f');
 
 }
 
@@ -1063,6 +1489,8 @@ void mostrarMenu(){
     printf("4- Sair do sistema\n");
     printf("=======================================\n");
 }
+
+
 
 int main (){
     int opcao;
@@ -1100,6 +1528,6 @@ int main (){
     } while (opcao != 4);
     
 
-
+    
     return 0;   
 }
