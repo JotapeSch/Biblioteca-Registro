@@ -107,7 +107,7 @@ int data_valida_simples(int dia, int mes, int ano) {
         return 0;
     }
 
-    // 4. Checagem de Limite de Dias por Mês (A CHAVE DA VALIDAÇÃO)
+    // 4. Checagem de Limite de Dias por Mês 
     if (mes == 4 || mes == 6 || mes == 9 || mes == 11) {
         // Meses com 30 dias (Abril, Junho, Setembro, Novembro)
         if (dia > 30) {
@@ -275,23 +275,52 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
     strcpy(cliente->endereco.rua, RUA[rand() % 3]);
     strcpy(cliente->endereco.bairro, BAIRRO[rand() % 3]);
     strcpy(cliente->endereco.estado, ESTADO[0]);
-    cliente->renda_mensal = (float) (1 + rand() % 9999);
+    cliente->renda_mensal = (float) (1000 + rand() % 9999);
     cliente->endereco.numero = rand() % 999;
     //char telefone[14];  //99 99999-9999
-    cliente->celular->telefone[0] = '6';
-    cliente->celular->telefone[1] = '7'; // 1
-    cliente->celular->telefone[2] = ' ';
-    for (int i = 3; i < 8; i++){
-        cliente->celular->telefone[i] = '0' + (rand() % 10);
+    
+    cliente->residencial.telefone[0] = '6'; 
+    cliente->residencial.telefone[1] = '7';
+    cliente->residencial.telefone[2] = ' ';
+    for(int i = 3; i < 8; i++){
+        cliente->residencial.telefone[i] = '0' + (rand() % 10); 
     }
-    cliente->celular->telefone[8] = '-';
-    for (int i = 9; i < 13; i++){
-        cliente->celular->telefone[i] = '0' + (rand() % 10);
+    cliente->residencial.telefone[8] = '-';
+    for (int j = 9; j < 13; j++){
+        cliente->residencial.telefone[j] = '0' + (rand() % 10); 
     }
-    cliente->celular[0].telefone[13] = '\0';
+
+    cliente->residencial.telefone[13] = '\0';
+    
+
+    // GERAÇÃO TELEFONES COMERCIAIS (2 slots totais)
+    for(int i = 0; i < 2; i++){
+        // Preenchimento do formato 67 99999-9999
+        cliente->comercial[i].telefone[0] = '6'; cliente->comercial[i].telefone[1] = '7'; 
+        cliente->comercial[i].telefone[2] = ' ';
+        for (int j = 3; j < 8; j++){ 
+            cliente->comercial[i].telefone[j] = '0' + (rand() % 10); 
+        }
+        cliente->comercial[i].telefone[8] = '-';
+        for (int j = 9; j < 13; j++){ cliente->comercial[i].telefone[j] = '0' + (rand() % 10); }
+        cliente->comercial[i].telefone[13] = '\0'; 
+    }
+
+    // GERAÇÃO TELEFONES CELULARES (5 slots totais)
+    for(int i = 0; i < 5; i++){
+        // Preenchimento do formato 67 99999-9999
+        cliente->celular[i].telefone[0] = '6'; cliente->celular[i].telefone[1] = '7';
+        cliente->celular[i].telefone[2] = ' ';
+        for (int j = 3; j < 8; j++){ cliente->celular[i].telefone[j] = '0' + (rand() % 10); }
+        cliente->celular[i].telefone[8] = '-';
+        for (int j = 9; j < 13; j++){ cliente->celular[i].telefone[j] = '0' + (rand() % 10); }
+        cliente->celular[i].telefone[13] = '\0';
+    }
+
     cliente->ativo = 1;
     proximo_codigo_cliente++;
 }
+ 
 
 //OBJETIVO: mostrar dados do cliente
 //PARAMETRO: Registro de um cliente
@@ -299,7 +328,21 @@ void gerar_dados_clientes(struct CLIENTE *cliente){
 void mostrar_cliente(const struct CLIENTE *cli) {
     printf("Codigo: %d\n", cli->codigo);
     printf("Nome: %s\n", cli->nome);
-    printf("Celular: %s\n", cli->celular->telefone);
+    printf("Residencial: %s\n", cli->residencial.telefone);
+    for(int i = 0; i < 2; i++){
+        // Checa se o primeiro caractere não é o terminador nulo ('\0')
+        if (cli->comercial[i].telefone[0] != '\0'){
+            printf("Comercial[%d]: %s\n", i+1, cli->comercial[i].telefone);
+        }
+    }
+    
+    // 4. Mostrar Telefones Celulares (Array de 5)
+    for(int i = 0; i < 5; i++){
+        // Checa se o primeiro caractere não é o terminador nulo ('\0')
+        if (cli->celular[i].telefone[0] != '\0'){
+            printf("Celular[%d]: %s\n", i+1, cli->celular[i].telefone);
+        }
+    }
     printf("Renda Mensal: R$ %.2f\n", cli->renda_mensal);
     printf("Endereco: %s, %d - %s/%s\n", cli->endereco.rua, cli->endereco.numero, cli->endereco.cidade, cli->endereco.estado);
 }
