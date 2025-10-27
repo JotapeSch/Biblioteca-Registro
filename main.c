@@ -311,7 +311,6 @@ static FILE *abrir_arquivo(const char *nome_arq, const char *modo_abertura) {
     FILE *arq = fopen(nome_arq, modo_abertura);
     if (arq == NULL) {
         if (strcmp(modo_abertura, "rb+") == 0 || strcmp(modo_abertura, "ab") == 0) {
-            perror("Erro ao abrir/criar arquivo");
         }
     }
     return arq;
@@ -349,7 +348,6 @@ FILE *abrir_arquivo_carro(const char *modo_abertura){
     if (arquivo == NULL){
         if (strcmp(modo_abertura, "r+b") == 0 || strcmp(modo_abertura, "a+b") == 0){
             printf("Nao foi possivel abrir ou criar o arquivo de carros.\n");
-            perror("Detalhes do erro: ");
         }
     }
     return arquivo;
@@ -406,6 +404,7 @@ void InserirCarro(){
 void ExcluirCarro(){
     FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        printf("Nenhum carro inserido para fazer exclusao!\n");
         return;
     }
 
@@ -480,6 +479,7 @@ void ExcluirCarro(){
 void MostrarCarroDisp_marca_modelo(){
     FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        printf("Nenhum carro disponivel para mostrar!\n");
         return;
     }
 
@@ -557,6 +557,7 @@ void MostrarCarroDisp_marca_modelo(){
 int MostrarCarroDispo_selecao(){
     FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        printf("Nenhum carro disponivel para mostrar!\n");
         return 0;
     }
 
@@ -849,7 +850,6 @@ int buscar_cliente_por_codigo(int codigo, struct CLIENTE *c_out) {
 
     while (fread(&c, sizeof(struct CLIENTE), 1, arquivo) == 1) {
         if (c.codigo == codigo && c.ativo == 1) {
-            // Copia os dados para o endereço de saída fornecido (SEM MALLOC)
             if (c_out) *c_out = c; 
             encontrado = 1;
             break;
