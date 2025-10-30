@@ -6,6 +6,7 @@
 #include <time.h>
 #include <ctype.h> 
 
+//Joao Pedro Schons, Ryan Campos, Vinicius Amancio
 
 // CONTEÚDO AUXILIAR GERAL E CONSTANTES 
 
@@ -349,7 +350,6 @@ FILE *abrir_arquivo_carro(const char *modo_abertura){
     if (arquivo == NULL){
         if (strcmp(modo_abertura, "r+b") == 0 || strcmp(modo_abertura, "a+b") == 0){
             printf("Nao foi possivel abrir ou criar o arquivo de carros.\n");
-            perror("Detalhes do erro: ");
         }
     }
     return arquivo;
@@ -404,8 +404,9 @@ void InserirCarro(){
 //PARAMETRO: nenhum
 //RETORNO: nenhum
 void ExcluirCarro(){
-    FILE *arquivo = abrir_arquivo_carro("rb");
+    FILE *arquivo = abrir_arquivo_carro("rb+");
     if (arquivo == NULL) {
+        printf("Nenhum carro disponivel para excluir!\n");
         return;
     }
 
@@ -480,6 +481,7 @@ void ExcluirCarro(){
 void MostrarCarroDisp_marca_modelo(){
     FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        printf("Nenhum carro disponivel para mostrar!\n");
         return;
     }
 
@@ -557,6 +559,7 @@ void MostrarCarroDisp_marca_modelo(){
 int MostrarCarroDispo_selecao(){
     FILE *arquivo = abrir_arquivo_carro("rb");
     if (arquivo == NULL) {
+        printf("Nenhum carro disponivel para mostrar!\n");
         return 0;
     }
 
@@ -565,7 +568,7 @@ int MostrarCarroDispo_selecao(){
     int count = 0;
     int opcionais_selecionados[12] = {0}; 
     int total_opcionais_selecionados = 0;
-    char input_buffer[5];
+    char entrada[5];
     int num_opcional;
 
     rewind(arquivo);
@@ -589,25 +592,32 @@ int MostrarCarroDispo_selecao(){
         printf("---------------------------------------\n");
         printf("OPCIONAIS SELECIONADOS (%d):\n", total_opcionais_selecionados);
         for (int i = 0; i < 12; i++) {
-            // Exibe [X] se selecionado, [ ] se não
-            printf("%2d. %-20s [%c]\n", i + 1, opcionais[i], opcionais_selecionados[i] ? 'X' : ' ');
-            //                                                              
+            char marcador_selecao; 
+        
+            if (opcionais_selecionados[i] != 0) {
+                marcador_selecao = 'X'; // Selecionado
+            } else {
+                marcador_selecao = ' '; // Não Selecionado
+            }                                               
+            
+            printf("%2d. %-20s [%c]\n", i + 1, opcionais[i], marcador_selecao);
         }
         printf("---------------------------------------\n");
-        printf("Digite o NUMERO do opcional (1 a 12) para alternar, ou 'F' para buscar:\n");
+        printf("Digite o NUMERO do opcional (1 a 12) para alternar\n");
+        printf("Digite 'F' ou 'f' para fazer a busca quando finalizar a selecao!\n");
         
-        printf("Opção: ");
-        if (scanf("%4s", input_buffer) != 1) { 
+        printf("opcao: ");
+        if (scanf("%4s", entrada) != 1) { 
             while (getchar() != '\n' && !feof(stdin)); // Limpa buffer
             continue;
         }
 
-        if (input_buffer[0] == 'F' || input_buffer[0] == 'f') {
+        if (entrada[0] == 'F' || entrada[0] == 'f') {
             break; // Sai do loop de seleção
         }
 
         // Tenta converter a entrada para número
-        if (sscanf(input_buffer, "%d", &num_opcional) == 1) {
+        if (sscanf(entrada, "%d", &num_opcional) == 1) {
             int indice = num_opcional - 1; // Ajuste para 0 a 11
             
             if (indice >= 0 && indice < 12) {
@@ -643,7 +653,7 @@ int MostrarCarroDispo_selecao(){
     printf("Carros disponiveis com os %d opcionais selecionados:\n", total_opcionais_selecionados);
     
     // exibição dos resultados
-    printf("%-8s | %-12s | %-12s | %-10s\n", "Placa", "Marca", "Modelo", "Preço");
+    printf("%-8s | %-12s | %-12s | %-10s\n", "Placa", "Marca", "Modelo", "Preco");
     printf("--------------------------------------------------\n");
 
     while (fread(&carro, sizeof(struct CARRO), 1, arquivo) == 1) {
@@ -1224,15 +1234,17 @@ void InformarQuantidadeSomaPreco(){
         }
     }
 
+    rewind(arquivo);
     if (contador_ativo == 0) {
         printf("Nenhuma venda para mostrar soma total de preco!\n");
         fclose(arquivo);
         return; 
     }
+        rewind(arquivo);
         double soma_precos = 0.0;
         int quantidade = 0;
 
-
+    
         while(fread(&venda_atual, sizeof(struct VENDA_CARRO), 1, arquivo) == 1){
             if(venda_atual.ativo == 1){
                 quantidade++;
@@ -1278,7 +1290,7 @@ void InformarLucroTotal(){
         return; 
     }
 
-  
+        rewind(arquivo);
 
         float lucro_total = 0.0f;
        
